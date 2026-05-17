@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>完美世界 - 互动文字游戏</title>
+    <style>
+        :root {
+            --gold-bg: linear-gradient(135deg, #e6c27a 0%, #ffedd2 100%);
+            --gray-bg: linear-gradient(135deg, #d3d3d3 0%, #eeeeee 100%);
+            --red-bg: linear-gradient(135deg, #4a0404 0%, #8b0000 100%);
+            --dark-bg: linear-gradient(135deg, #111111 0%, #000000 100%);
+            --text-dark: #2c2c2c;
+            --text-light: #e0e0e0;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: "STZhongsong", "SimSun", "Songti SC", serif;
+            overflow: hidden;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 500px;
+            height: 100vh;
+            max-height: 950px;
+            background: var(--gold-bg);
+            position: relative;
+            box-shadow: 0 0 20px rgba(255,255,255,0.1);
+            transition: background 1.5s ease;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .shake { animation: shake-anim 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake-anim {
+            10%, 90% { transform: translate3d(-2px, 0, 0); }
+            20%, 80% { transform: translate3d(4px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+            40%, 60% { transform: translate3d(6px, 0, 0); }
+        }
+
+        #text-box {
+            flex: 1;
+            padding: 30px 25px;
+            font-size: 17px;
+            line-height: 1.8;
+            color: var(--text-dark);
+            overflow-y: auto;
+            max-height: 55vh;
+            transition: all 0.5s;
+            text-align: justify;
+            scroll-behavior: smooth;
+            padding-bottom: 50px;
+        }
+
+        #text-box::-webkit-scrollbar { width: 4px; }
+        #text-box::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 4px; }
+
+        #text-box p {
+            opacity: 0;
+            transform: translateY(10px);
+            animation: fade-in 0.8s forwards;
+            margin-bottom: 18px;
+        }
+
+        @keyframes fade-in {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 1. 缓慢的潜意识模式 (黑底居中 [] 字体) */
+        #text-box.flash-mode {
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            text-align: center; font-size: 20px; letter-spacing: 2px; font-style: italic;
+        }
+        #text-box.flash-mode p {
+            color: #dcdcdc; text-shadow: 0 0 15px rgba(255,255,255,0.3);
+            opacity: 1; transform: none; animation: none;
+        }
+
+        /* 2. 正常段落中的划线文字：增加循环的红蓝故障闪动 */
+        .glitch-text {
+            text-decoration: line-through;
+            color: #777;
+            font-weight: bold;
+            display: inline-block;
+            /* 修改：增加无尽循环的抖动动画 */
+            animation: inline-glitch 2.5s infinite linear;
+        }
+        @keyframes inline-glitch {
+            0%, 85% { text-shadow: none; opacity: 0.7; }
+            87% { text-shadow: -2px 0px rgba(255,0,0,0.7), 2px 0px rgba(0,255,255,0.7); opacity: 1; }
+            89% { text-shadow: 2px 0px rgba(255,0,0,0.7), -2px 0px rgba(0,255,255,0.7); opacity: 0.5; }
+            92% { text-shadow: none; opacity: 0.9; }
+            95% { text-shadow: -1px 0px rgba(255,0,0,0.7), 1px 0px rgba(0,255,255,0.7); opacity: 1; }
+            100% { text-shadow: none; opacity: 0.7; }
+        }
+
+        /* 2b. 无彩色的嗡鸣故障闪动 */
+        .glitch-mono {
+            display: inline-block;
+            animation: glitch-mono-anim 2.5s infinite linear;
+        }
+        @keyframes glitch-mono-anim {
+            0%, 85% { opacity: 0.7; transform: translate(0, 0); }
+            87% { opacity: 1; transform: translate(-1px, 0); }
+            89% { opacity: 0.5; transform: translate(1px, 0); }
+            92% { opacity: 0.9; transform: translate(0, 0); }
+            95% { opacity: 1; transform: translate(-1px, 0); }
+            100% { opacity: 0.7; transform: translate(0, 0); }
+        }
+
+        /* 3. 微尘消散模式 (先清晰，后模糊消散) */
+        #text-box.dust-mode {
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            text-align: center; background-color: #000;
+        }
+        #text-box.dust-mode p {
+            color: transparent; 
+            font-size: 18px; line-height: 2.2; margin-bottom: 25px;
+        }
+        @keyframes dust-fade {
+            0% { opacity: 0; transform: translateY(15px); filter: blur(3px); color: rgba(255,255,255,0); text-shadow: none; }
+            15% { opacity: 1; transform: translateY(0); filter: blur(0px); color: rgba(255,255,255,1); text-shadow: 0 0 8px rgba(255,255,255,0.6); letter-spacing: 0px; }
+            70% { opacity: 1; transform: translateY(0); filter: blur(0px); color: rgba(255,255,255,1); text-shadow: 0 0 8px rgba(255,255,255,0.6); letter-spacing: 0px; }
+            100% { opacity: 0; transform: translateY(-20px); filter: blur(6px); color: rgba(255,255,255,0); text-shadow: 0 0 15px rgba(255,255,255,0.3); letter-spacing: 5px; }
+        }
+
+        /* 4. 居中模式 */
+        #text-box.center-mode {
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            text-align: center;
+        }
+        #text-box.center-mode p {
+            margin-bottom: 18px;
+        }
+
+        #choices-box {
+            padding: 20px 25px 30px 25px; display: flex; flex-direction: column; gap: 12px;
+            background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 60%, transparent 100%);
+            min-height: 120px;
+            flex-shrink: 0;
+        }
+
+        .choice-btn {
+            background: rgba(255, 255, 255, 0.9); border: 1px solid rgba(0, 0, 0, 0.3); padding: 15px;
+            font-family: inherit; font-size: 15px; color: #222; cursor: pointer; border-radius: 4px;
+            text-align: left; transition: all 0.3s; opacity: 0; line-height: 1.5; animation: fade-in 0.8s forwards;
+        }
+        .choice-btn:hover, .choice-btn:active { background: #222; color: #fff; border-color: #fff; }
+        .choice-btn.flash-btn, .choice-btn.dust-btn {
+            background: transparent; color: #888; border: 1px solid #444; text-align: center;
+        }
+        .choice-btn.dust-btn { border: none; color: rgba(255,255,255,0.5); letter-spacing: 3px; font-style: italic; }
+        .choice-disabled { opacity: 0.4 !important; cursor: not-allowed; background: #ccc; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="text-box"></div>
+    <div id="choices-box"></div>
+</div>
+
+<script>
+    let state = { awakening: 0, affection: 0, loopCount: 0 };
+
+    const storyNodes = {
+        "start": {
+            bg: "var(--gold-bg)", color: "var(--text-dark)",
+            text: () => {
+                let txt = "一<br><br>茶在沸腾。<br>水丘昭券睁开眼睛的时候，面前是一炉将沸未沸的茶。";
+                if(state.loopCount > 0) txt = `一<br><br>茶在沸腾。<br>这是第 ${state.loopCount + 1} 次轮回。他再次睁开眼，面前依然是那炉将沸未沸的茶。`;
+                return [
+                    txt,
+                    "白瓷的壶嘴里飘出极细的水汽，在金黄的光线里拧成柔软的一缕。他没有立刻起身，只是看着它上升、弯曲、消散，像极了什么他不记得的东西。",
+                    "他不记得自己是怎么上船的。只记得一些破碎的脚步声和急促的呼吸。他试着往更深处想，脑子里<span class='glitch-mono'>嗡的一下</span>，他放弃了追溯。",
+                    "钱弘侑坐在他对面，握着他的手。那双眼睛像两口幽深的枯井，往深里看去只嵌着自己的倒影。被这样一双眼睛盯着，心口莫名地瑟缩了一下。",
+                    "“我们逃出来了。”钱弘侑轻声说道。"
+                ];
+            },
+            choices: [
+                { text: "想问留后怎么样了，西府的大局还在吗？", action: () => { state.awakening += 1; return "ch1_ask"; } },
+                { text: "不再追问，伸手去接他递来的茶盏。", action: () => { state.affection += 1; return "ch1_silent"; } }
+            ]
+        },
+        "ch1_ask": {
+            text: [
+                "他试着清了清嗓子：“三郎，我们这是去哪里？”",
+                "“桃花岛。”钱弘侑松开他的手，去端那烧开的壶茶，“先在这歇息几日。”",
+                "钱弘侑忽然探过身来，将茶盏从他手中拿走。茶汤泼出来几滴，落在素白色的里衣上。",
+                "“现在还烫。”钱弘侑避开目光，“先凉一会。”",
+                "水丘看着自己被夺走茶盏的手，点了点头。皮肤被轻微灼烫的刺痛此时慢慢爬上掌心。"
+            ],
+            choices: [{ text: "船在湖上行着", action: () => "ch1_boat" }]
+        },
+        "ch1_silent": {
+            text: [
+                "白瓷的杯壁贴在指尖，温润细腻。茶汤在盏中微微荡漾。他没有喝，只是把茶盏拢在掌心。",
+                "有些微妙。但他没有抓住那感觉。它太滑了，像手心里的一尾鱼，瞬间从指缝间溜走。"
+            ],
+            choices: [{ text: "船在湖上行着", action: () => "ch1_boat" }]
+        },
+        "ch1_boat": {
+            text: [
+                "水面是一池金黄的碎光。远处的阳光有些刺眼，只隐约看见天边模糊的青色山影。",
+                "钱弘侑从对面坐了过来，肩膀轻轻挨着水丘的肩头。",
+                "水丘想问他关于逃出来的细节，却发现已经忘了刚才想问什么。"
+            ],
+            choices: [{ text: "（记忆深处撕裂的画面）", action: () => "ch1_boat_glitch" }]
+        },
+        "ch1_boat_glitch": {
+            bg: "#000", color: "#dcdcdc", isCenter: true,
+            text: [
+                "<span class='glitch-text'>火光中有人倒下去。</span>",
+                "<span class='glitch-text'>何承训的脸——</span>",
+                "<span class='glitch-text'>不。</span>"
+            ],
+            choices: [{ text: "（强烈的<span class='glitch-mono'>嗡鸣</span>）", action: () => "ch1_boat_2" }]
+        },
+        "ch1_boat_2": {
+            bg: "var(--gold-bg)", color: "var(--text-dark)",
+            text: [
+                "他什么也没看见。什么也没记住。那轮太阳很大，悬在水天之间。",
+                "钱弘侑的头慢慢靠过来，靠在他的肩膀上。份量很轻，像一个试探的请求。"
+            ],
+            choices: [
+                { text: "看着没有尽头的金黄，不愿沉睡，隐隐觉得违和。", action: () => { state.awakening += 1; return "ch2_town"; } },
+                { text: "没有躲开，在这片静默里，睡着了，或者没有睡。", action: () => { state.affection += 1; return "ch2_town"; } }
+            ]
+        },
+        "ch2_town": {
+            bg: "var(--gray-bg)",
+            text: [
+                "二",
+                "镇子不大。灰白色的墙，灰白色的路，灰白色的天。嘈杂的人声混合成了一片嗡嗡的底噪。",
+                "钱弘侑举起一个粗糙的竹编蜻蜓：“买回去挂在船头好不好。”",
+                "水丘昭券看着他。钱弘侑在笑。"
+            ],
+            choices: [
+                { text: "莫名的窒息感扼住咽喉：“我去别处看一看。”", action: () => { state.awakening += 1; return "ch2_alley"; } },
+                { text: "听见自己说：“好。”", action: () => { state.affection += 1; return "ch2_boat_write"; } }
+            ]
+        },
+        "ch2_alley": {
+            text: [
+                "钱弘侑嘴角的笑意僵住了。水丘转身朝着市集背后的一条逼仄小巷疾步拐去。",
+                "还没走出三步，一只手从身后猛地攥住了他的小臂。力气大得惊人。",
+                "钱弘侑绕到他面前，堵住了阴影。脸彻底黑了下来：“不行。”"
+            ],
+            choices: [{ text: "（深层意识的质问）", action: () => "ch2_alley_flash" }]
+        },
+        "ch2_alley_flash": {
+            bg: "#000", isFlash: true,
+            text: ["[ 你可以控制他，你在害怕什么？ ]"],
+            choices: [{ text: "下一瞬", action: () => "ch2_alley_2" }]
+        },
+        "ch2_alley_2": {
+            bg: "var(--gray-bg)", color: "var(--text-dark)",
+            text: ["“水丘，”钱弘侑的声音有一丝颤抖，“累不累。我们回去。”"],
+            choices: [{ text: "顺从地点了点头", action: () => "ch2_boat_write" }]
+        },
+        "ch2_boat_write": {
+            bg: "var(--gray-bg)",
+            text: [
+                "回到船上，天色仍然是灰白的。水丘昭券坐在案前，提笔，蘸墨。",
+                "落下的是一团晕染的黑色。他发现自己完全无法回忆任何朝政信息。奏折、将领，那里的记忆未曾存在过。",
+                "<span class='glitch-text'>那一夜，何承训的兵围住了水丘宅邸。阖府上下，无一生还。</span>",
+                "“水丘。”钱弘侑探过身，不由分说地将案上的宣纸抽走，“等你的身体养好了再写。”"
+            ],
+            choices: [
+                { text: "涌起没来由的焦躁：“我好着呢，给我。”", action: () => { state.awakening += 1; return "ch2_night"; } },
+                { text: "脑中蒙上雾气，淡忘一切：“好吧，我答应你。”", action: () => { state.affection += 1; return "ch2_night"; } }
+            ]
+        },
+        "ch2_night": {
+            bg: "var(--gold-bg)",
+            text: [
+                "僵持只持续了一瞬。钱弘侑紧绷的脊背松弛下来，将宣纸抚平。",
+                "“你还记得……我们要去桃花岛吧？”他带着古怪的试探，双臂环住水丘，贴着耳畔呢喃。"
+            ],
+            choices: [{ text: "（意识的冷笑）", action: () => "ch2_night_flash" }]
+        },
+        "ch2_night_flash": {
+            bg: "#000", isFlash: true,
+            text: ["[ 你忘了，他当然不会走，杂草枯木将他的身体交错缝补，他甚至无法翻身。 ]"],
+            choices: [{ text: "夜色降临", action: () => "ch2_night_2" }]
+        },
+        "ch2_night_2": {
+            bg: "var(--gold-bg)", color: "var(--text-dark)",
+            text: [
+                "夜色降临。“你不知道。”钱弘侑的声音飘忽不定，“我每天都在怕。怕一睁眼你就不见了。”",
+                "水丘抬起手，覆上钱弘侑紧箍在自己腰间的手背，轻轻拍了两下。感到有什么东西正在边缘被撕开。"
+            ],
+            choices: [{ text: "第三章", action: () => "ch3_body" }]
+        },
+        "ch3_body": {
+            text: [
+                "三",
+                "他在铜镜前梳理。突然意识到这不是寻常的铜镜。",
+                "他摸向自己的嘴角，那里本该有一道小疤。指腹触及的，只有平滑柔软的肌肤。手指不自觉地摸向胸口、腰腹。"
+            ],
+            choices: [{ text: "（声音再次响起）", action: () => "ch3_body_flash" }]
+        },
+        "ch3_body_flash": {
+            bg: "#000", isFlash: true,
+            text: ["[ 放心，他不会知道的，你不忍心记住那些画面。 ]"],
+            choices: [{ text: "褪去衣衫", action: () => "ch3_body_2" }]
+        },
+        "ch3_body_2": {
+            bg: "var(--gold-bg)", color: "var(--text-dark)",
+            text: [
+                "衣衫层层叠叠退下。皮肤泛着玉石般的光泽。没有陈年的旧伤，没有理应存在的……他不知道那是什么。只觉得这具身体干净得近乎妖异。",
+                "这让他感到一丝荒谬。过去的岁月连同伤痛被一并粗暴地剜去了，剩下的，竟然只有一具沉溺于纯粹感官的完美空壳。",
+                "一双手臂从身后滑进来，贴在他赤裸的腰腹上。嘴唇落在后颈。很轻，然后吻住了。"
+            ],
+            choices: [
+                { text: "【抗拒】肩胛紧绷，这具身体此刻的饥渴是虚假的规则。", action: () => { state.awakening += 2; return "ch4_loop_check"; } },
+                { text: "【沉溺】心甘情愿接管这份大逆不道的情欲，向后贴去。", action: () => { state.affection += 2; return "ch3_intimacy"; } }
+            ]
+        },
+        "ch3_intimacy": {
+            text: ["他被转了过来，仰躺在榻上。前方和后方，都在这突如其来的情潮中叫嚣着。十指交缠。"],
+            choices: [{ text: "（无情的意识戳破伪装）", action: () => "ch3_intimacy_flash1" }]
+        },
+        "ch3_intimacy_flash1": {
+            bg: "#000", isFlash: true,
+            text: ["[ 你从来没有这样牵过他的手。他不会让你牵，你不会敢牵。你们最近的一次，他的手指离你不到一寸。但你没有动。因为你是—— ]"],
+            choices: [{ text: "重回金黄", action: () => "ch3_intimacy_2" }]
+        },
+        "ch3_intimacy_2": {
+            bg: "var(--gold-bg)", color: "var(--text-dark)",
+            text: [
+                "钱弘侑伏下身来，额头贴着额头，呼吸在唇上凝成水雾。",
+                "水丘看见他闭着眼睛，泪水溢出来，滴在脸颊上。那是唯一与此刻完美不相称的温度。",
+                "掌心贴上肩胛骨，两个人的动作在同一个平面上融合，如两股潮水在月圆之夜相遇。烛火摇曳与身体摇晃同步。"
+            ],
+            choices: [{ text: "（冰冷的审问）", action: () => "ch3_intimacy_flash2" }]
+        },
+        "ch3_intimacy_flash2": {
+            bg: "#000", isFlash: true,
+            text: ["[ 有意义吗？你拥抱一段被反复重播的记忆。你宁可在这片光里，一帧一帧地，拖着他与你造的梦一起下沉。 ]"],
+            choices: [{ text: "停顿", action: () => "ch3_intimacy_3" }]
+        },
+        "ch3_intimacy_3": {
+            bg: "var(--gold-bg)", color: "var(--text-dark)", isCenter: true,
+            text: ["“闭嘴。”钱弘侑嘶哑地说。时间停住了。他们躺了很久。"],
+            choices: [{ text: "第四日的清晨", action: () => "ch4_loop_check" }]
+        },
+        "ch4_loop_check": {
+            bg: "var(--gold-bg)",
+            text: () => {
+                return [
+                    "四<br><br>他在平稳的乌篷船上睁开眼。面前是一炉沸腾的茶。<br>和昨天早上一样。和昨天的昨天早上一样。",
+                    "钱弘侑握着他的手，眼眶微红：“水丘。我们逃出来了。”",
+                    "水丘昭券看着他。他知道窗外没有西湖，窗外的模糊光斑在抖动。他站起来。茶已经凉了。"
+                ];
+            },
+            choices: () => {
+                let options = [{ text: "喉咙被捏住：“你看窗外天气很好，我们去走走。” (保持虚假)", action: () => "loop_end" }];
+                if (state.awakening >= 2) options.push({ text: "【挑破】“三郎。为什么你会这样。”", action: () => "ch4_breakdown" });
+                else options.push({ text: "（觉醒度不足，无法摆脱幻境规则的压制）", action: () => null });
+                return options;
+            }
+        },
+        "loop_end": {
+            bg: "var(--dark-bg)", color: "var(--text-light)",
+            text: [
+                "水丘昭券看着他的眼睛，眼睛里没有倒影。",
+                "钱弘侑的笑容回来了，完好无损的：“好。”",
+                "水丘觉得必须说下去，因为下一次看到沸腾的茶，他又会以为是第一次。但他选择了闭嘴。",
+                "只要不挑破真相，这艘假船就会无止境地航行。他永远拥有一个完好无损的水丘昭券，也永远发现不了水丘其实也爱着他。"
+            ],
+            choices: [{ text: "【再次闭眼重来】", action: () => { state.loopCount += 1; state.awakening = 0; return "start"; } }]
+        },
+        "ch4_breakdown": {
+            bg: "var(--red-bg)", color: "var(--text-light)",
+            text: [
+                "时间是断裂的。水丘低头，看到钱弘侑跪在面前。在笑，在握剑，在把脸埋进他的膝盖。画面叠加在同一秒。",
+                "脚下有一张纸。是一片殷红的血。",
+                "窗外的磨砂玻璃碎了。是西府，是大殿，是吞噬了所有屋檐的烈火！何承训的脸带着似笑非笑的弧度，利刃从胸口刺入。",
+                "胸口开始扩散红晕，缓慢地沿着布的经纬线绽放。",
+                "原来我已经死了。原来天空全都是假的。",
+                "但在死亡横穿梦境的剧痛中，有一件事：钱弘侑每一次抱着他乞求他不要离开，那些都是真的。"
+            ],
+            choices: [{ text: "天在塌。湖水是火。墙壁在融化。", action: () => "ch5_climax" }]
+        },
+        "ch5_climax": {
+            bg: "var(--red-bg)", color: "var(--text-light)",
+            text: [
+                "水丘府的灰烬无声地淹没了假太阳。钱弘侑双手死死抱住水丘的膝盖，脸紧贴着他的腿。",
+                "“留在这里。哪怕是个梦。”",
+                "他在求一个死去的人不要离开，求一个幻影为了他永生困在谎言里。",
+                "水丘模糊地想起了汴梁城头猎猎的风。他曾破天荒地想过，若是能和身边这个人并骨于此，一生似乎也算功德圆满。只是乱世太逼仄，把相见的缝隙挤压得一丝不剩。"
+            ],
+            choices: [{ text: "弯下腰，捧起他的脸。手指有了战场旧茧的温度。", action: () => { return state.affection >= 3 ? "true_end" : "normal_end"; } }]
+        },
+        "normal_end": {
+            bg: "var(--dark-bg)", color: "var(--text-light)",
+            text: [
+                "水丘昭券握住了钱弘侑拿剑的手。“当年你能坦然向我托付生死。如今为何要跟我一起死在这虚妄的梦里？”",
+                "他将剑尖抵在胸口：“杀死这个幻影！”",
+                "钱弘侑疯狂摇头，但在水丘强压下，剑刺入了一寸。白衣出现裂痕。水丘化作光尘消散。",
+                "钱弘侑回到了现实。他斩断了虚妄，带着大义和遗憾活下去——他永远不知道，那个幻影其实也爱着他。",
+                "【结局：残忍的清醒】"
+            ],
+            choices: [{ text: "重入轮回", action: () => { state = {awakening:0, affection:0, loopCount:0}; return "start"; } }]
+        },
+        "true_end": {
+            bg: "var(--dark-bg)", color: "var(--text-light)",
+            text: [
+                "五",
+                "他把钱弘侑的脸捧在手心里，拇指抹去眼泪。“三郎，你看着我。”",
+                "他握住了钱弘侑的手，带到剑柄上。他是这梦中的神明，带着钱弘侑拔出了剑，将剑尖抵在自己的胸口。",
+                "“当年你能坦然向我托付生死，要我为你好好活着。如今换作我先走一步，你为何却要跟我一起死在虚妄里？”",
+                "钱弘侑满脸是泪。他看到了水丘的眼睛。那双眼睛里没有恐惧，没有不舍。好像在对他说：我从来没有像现在这样，对你如此确定。"
+            ],
+            choices: [
+                { text: "【杀死幻影】握紧他的手，让剑锋没入。", action: () => "true_end_kill" },
+                { text: "【不杀死幻影】心生不忍，松开手。", action: () => "true_end_loop" }
+            ]
+        },
+        "true_end_loop": {
+            bg: "#000", color: "#888",
+            text: [
+                "长剑当啷落地。",
+                "“我做不到……”钱弘侑崩溃地抱紧了他，像是抱住了一根救命的浮木。",
+                "水丘昭券叹了一口气。他终究还是无法狠下心来刺穿这副幻象。他任由周围崩塌的火光重组、倒退，淹没了两人。",
+                "记忆的刻盘重置，世界再次陷入无尽的循环。"
+            ],
+            choices: [{ text: "再次睁开眼", action: () => { state.loopCount += 1; state.awakening = 0; return "start"; } }]
+        },
+        "true_end_kill": {
+            bg: "#000", isDust: true,
+            text: [
+                "在剑锋没入的那一点位上，",
+                "出现了第一道裂口。",
+                "然后裂口在扩大，<br>涌出了白光。",
+                "一粒一粒，是微尘。",
+                "他的指尖开始变得透明，<br>手腕消失了。",
+                "水丘的面容从边缘开始淡化，<br>像一幅画被水由外向内慢慢洇开。",
+                "最后一瞬，他在笑。",
+                "微尘，散尽。"
+            ],
+            choices: [{ text: "睁开眼", action: () => "epilogue" }]
+        },
+        "epilogue": {
+            bg: "var(--gray-bg)", color: "var(--text-dark)",
+            text: [
+                "尾声",
+                "临行在即。粗茶淡饭吃完，寒暄的话渐渐说尽。听着江风拂过芦苇的沙沙声，陷入了漫长的静默。",
+                "钱弘俶端起酒盏，目光长久停留在钱弘侑脸上，发出一声笑音：“三哥，你们真是越来越像了。”",
+                "钱弘侑低眉，看着酒盏里倒映出的自己，淡淡地笑了一下，不语。",
+                "最先是钱弘侑眼角的细纹舒展开，喉咙溢出一声轻笑。随后，众人跟着大笑起来。",
+                "江鱼会冷，茶水会凉，人会老去，离别也总是如期而至。",
+                "但他已经不会再害怕。"
+            ],
+            choices: [{ text: "感谢游玩 (点击重来)", action: () => { state = {awakening:0, affection:0, loopCount:0}; return "start"; } }]
+        }
+    };
+
+    const container = document.getElementById('game-container');
+    const textBox = document.getElementById('text-box');
+    const choicesBox = document.getElementById('choices-box');
+
+    function isCJK(ch) {
+        const code = ch.charCodeAt(0);
+        return (code >= 0x4E00 && code <= 0x9FFF) ||
+               (code >= 0x3400 && code <= 0x4DBF) ||
+               (code >= 0xF900 && code <= 0xFAFF);
+    }
+
+    function randomCJK() {
+        return String.fromCharCode(0x4E00 + Math.floor(Math.random() * (0x9FFF - 0x4E00)));
+    }
+
+    function scrambleText(element, originalText, duration, onComplete) {
+        const chars = [...originalText];
+        const cjkIndices = [];
+        chars.forEach((ch, i) => { if (isCJK(ch)) cjkIndices.push(i); });
+
+        const startTime = performance.now();
+
+        function tick() {
+            const elapsed = performance.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const display = [...chars];
+
+            if (progress <= 0.2) {
+                for (const idx of cjkIndices) {
+                    display[idx] = randomCJK();
+                }
+            } else if (progress <= 0.8) {
+                const lockCount = Math.floor(cjkIndices.length * ((progress - 0.2) / 0.6));
+                const lockedSet = new Set(cjkIndices.slice(0, lockCount));
+                const unlockedIndices = cjkIndices.slice(lockCount);
+
+                for (const idx of cjkIndices) {
+                    if (lockedSet.has(idx)) {
+                        display[idx] = chars[idx];
+                    }
+                }
+
+                if (unlockedIndices.length > 1) {
+                    const values = unlockedIndices.map(i => chars[i]);
+                    for (let i = values.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [values[i], values[j]] = [values[j], values[i]];
+                    }
+                    unlockedIndices.forEach((idx, i) => { display[idx] = values[i]; });
+                } else if (unlockedIndices.length === 1) {
+                    display[unlockedIndices[0]] = randomCJK();
+                }
+            } else {
+                for (const idx of cjkIndices) {
+                    display[idx] = chars[idx];
+                }
+            }
+
+            element.textContent = display.join('');
+
+            if (progress < 1) {
+                setTimeout(tick, 60);
+            } else {
+                element.textContent = originalText;
+                if (onComplete) onComplete();
+            }
+        }
+
+        tick();
+    }
+
+    function renderScene(sceneId) {
+        const scene = storyNodes[sceneId];
+        if (!scene) return;
+
+        textBox.className = '';
+        textBox.innerHTML = '';
+        choicesBox.innerHTML = '';
+
+        if (scene.bg) container.style.background = scene.bg;
+
+        if (scene.isFlash) {
+            textBox.classList.add('flash-mode');
+            choicesBox.style.background = "transparent";
+        } else if (scene.isDust) {
+            textBox.classList.add('dust-mode');
+            choicesBox.style.background = "transparent";
+        } else {
+            if (scene.color) textBox.style.color = scene.color;
+            const isDark = scene.color && scene.color.includes('light');
+            choicesBox.style.background = isDark ? "linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.6) 70%, transparent 100%)" : "linear-gradient(to top, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.6) 70%, transparent 100%)";
+            if (scene.isCenter) {
+                textBox.classList.add('center-mode');
+            }
+        }
+
+        if (sceneId === "ch4_breakdown") {
+            container.classList.add('shake');
+            setTimeout(() => container.classList.remove('shake'), 500);
+        }
+
+        const texts = typeof scene.text === 'function' ? scene.text() : scene.text;
+
+        let flashP = null;
+        let flashOriginalText = null;
+
+        texts.forEach((paragraph, index) => {
+            const p = document.createElement('p');
+
+            if (scene.isFlash) {
+                p.textContent = paragraph;
+                flashP = p;
+                flashOriginalText = paragraph;
+            } else if (scene.isDust) {
+                p.innerHTML = paragraph;
+                p.style.animation = `dust-fade 8s forwards`;
+                p.style.animationDelay = `${index * 1.5}s`;
+            } else {
+                p.innerHTML = paragraph;
+                p.style.animationDelay = `${index * 0.6}s`;
+            }
+            textBox.appendChild(p);
+        });
+
+        const currentChoices = typeof scene.choices === 'function' ? scene.choices() : scene.choices;
+        
+        currentChoices.forEach((choice, index) => {
+            const btn = document.createElement('button');
+            btn.className = 'choice-btn';
+
+            if (scene.isFlash) {
+                btn.classList.add('flash-btn');
+                btn.style.animation = 'none';
+                btn.style.opacity = '0';
+                btn.style.pointerEvents = 'none';
+            }
+            if (scene.isDust) btn.classList.add('dust-btn');
+
+            btn.innerHTML = choice.text;
+
+            if (scene.isDust) {
+                btn.style.animationDelay = `${texts.length * 1.5 + 4}s`;
+            } else if (!scene.isFlash) {
+                btn.style.animationDelay = `${texts.length * 0.6 + (index * 0.2)}s`;
+            }
+
+            const actionResult = choice.action();
+            if (actionResult === null) {
+                btn.classList.add('choice-disabled');
+                btn.onclick = () => {};
+            } else {
+                btn.onclick = () => renderScene(actionResult);
+            }
+            choicesBox.appendChild(btn);
+        });
+
+        if (scene.isFlash && flashP) {
+            scrambleText(flashP, flashOriginalText, 3000, () => {
+                const buttons = choicesBox.querySelectorAll('.choice-btn');
+                buttons.forEach(btn => {
+                    btn.style.animation = 'fade-in 0.8s forwards';
+                    btn.style.opacity = '';
+                    btn.style.pointerEvents = 'auto';
+                });
+            });
+        }
+    }
+
+    window.onload = () => renderScene("start");
+
+</script>
+</body>
+</html>
